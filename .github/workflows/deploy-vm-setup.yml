@@ -12,17 +12,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
         
-    - name: Copy setup script to server
+    - name: Copy scripts to server
       uses: appleboy/scp-action@v0.1.4
       with:
         host: ${{ secrets.PRODUCTION_VM_IP }}
         username: ${{ secrets.PRODUCTION_SSH_USER }}
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
-        source: "setup-vm-and-docker.sh"
+        source: "scripts/"
         target: "/tmp/"
         
-    - name: Run setup script
+    - name: Run setup scripts
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.PRODUCTION_VM_IP }}
@@ -30,9 +30,17 @@ jobs:
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
         script: |
-          # Make script executable and run it
-          chmod +x /tmp/setup-vm-and-docker.sh
-          /tmp/setup-vm-and-docker.sh
+          # Make scripts executable
+          chmod +x /tmp/scripts/setup-vm-and-docker.sh
+          chmod +x /tmp/scripts/secure-gcp-vm.sh
+          
+          # Run VM setup script
+          echo "=== Running VM Setup ==="
+          /tmp/scripts/setup-vm-and-docker.sh
+          
+          # Run security hardening script
+          echo "=== Running Security Hardening ==="
+          /tmp/scripts/secure-gcp-vm.sh
           
           # Show final status
           echo "=== Setup Complete ==="
