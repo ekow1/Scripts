@@ -53,27 +53,12 @@ jobs:
           echo "✅ Force deployment requested"
           echo "has_changes=true" >> $GITHUB_OUTPUT
         else
-          # Check if we're in a push event and have valid commit hashes
-          if [ "${{ github.event_name }}" == "push" ] && [ -n "${{ github.event.before }}" ] && [ -n "${{ github.event.after }}" ]; then
-            echo "📋 Checking changes between commits..."
-            echo "Before: ${{ github.event.before }}"
-            echo "After: ${{ github.event.after }}"
-            
-            # Check if the commits exist
-            if git rev-parse --verify "${{ github.event.before }}" >/dev/null 2>&1 && git rev-parse --verify "${{ github.event.after }}" >/dev/null 2>&1; then
-              if git diff --name-only "${{ github.event.before }}" "${{ github.event.after }}" | grep -q "scripts/setup-vm-and-docker.sh"; then
-                echo "✅ Changes detected in setup script"
-                echo "has_changes=true" >> $GITHUB_OUTPUT
-              else
-                echo "⏭️ No changes in setup script"
-                echo "has_changes=false" >> $GITHUB_OUTPUT
-              fi
-            else
-              echo "⚠️ Invalid commit hashes, assuming changes"
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-            fi
+          # For push events, always deploy if the script is in the paths filter
+          if [ "${{ github.event_name }}" == "push" ]; then
+            echo "✅ Push event detected - deploying"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ No valid commit information, assuming changes"
+            echo "⚠️ Unknown event type, assuming changes"
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
         fi
