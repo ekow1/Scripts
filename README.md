@@ -77,22 +77,57 @@ devops/
 │       └── deploy-vm-setup.yml    # GitHub Actions workflow
 ├── scripts/
 │   ├── setup-vm-and-docker.sh     # VM setup script
+│   ├── create-project.sh          # Project creation script
+│   ├── manage-projects.sh         # Global project manager
 │   └── add-service-template.sh     # Service template generator
 ├── env.example                     # Environment variables example
 └── README.md                       # This file
 ```
 
-## 🌐 Nginx & Docker Swarm Setup
+### **VM Structure (after deployment)**
+```
+/opt/
+├── projects/                       # All projects
+│   ├── myapp/
+│   │   ├── nginx/                 # Project Nginx configs
+│   │   ├── services/              # Docker Compose files
+│   │   ├── ssl/                   # SSL certificates
+│   │   ├── logs/                  # Application logs
+│   │   └── manage-project.sh      # Project manager
+│   └── other-project/
+│       └── ...
+├── nginx-stack.yml                # Global Nginx stack
+├── manage-nginx.sh                # Nginx manager
+└── backups/                       # Project backups
+```
+
+## 🌐 Dynamic Project Management with Nginx & Docker Swarm
 
 ### **Architecture Overview**
 ```
-Internet → Nginx (Port 80/443) → Overlay Network → Your Services
+Internet → Nginx (Port 80/443) → Project-Specific Configs → Your Services
                 ↓
         Single Point of Entry
                 ↓
-        Load Balancing & SSL
+        Project-Based Routing
                 ↓
         Service Discovery
+```
+
+### **Project-Based Structure**
+```
+/opt/projects/
+├── project1/
+│   ├── nginx/           # Project-specific Nginx configs
+│   ├── services/        # Docker Compose files
+│   ├── ssl/            # SSL certificates
+│   ├── logs/           # Application logs
+│   └── manage-project.sh
+├── project2/
+│   ├── nginx/
+│   ├── services/
+│   └── manage-project.sh
+└── ...
 ```
 
 ### **Nginx Features**
@@ -110,7 +145,49 @@ Internet → Nginx (Port 80/443) → Overlay Network → Your Services
 - **Health Monitoring**: Built-in health checks and restart policies
 - **Scaling**: Easy horizontal scaling of services
 
-### **Management Commands**
+### **Project Management Commands**
+
+#### Global Project Management
+```bash
+# Create new project
+./scripts/manage-projects.sh create myapp myapp.example.com 3000
+
+# List all projects
+./scripts/manage-projects.sh list
+
+# Deploy all projects
+./scripts/manage-projects.sh deploy-all
+
+# Show status of all projects
+./scripts/manage-projects.sh status-all
+
+# Remove project
+./scripts/manage-projects.sh remove myapp
+
+# Backup all projects
+./scripts/manage-projects.sh backup
+```
+
+#### Individual Project Management
+```bash
+# Navigate to project
+cd /opt/projects/myapp
+
+# Add service to project
+./manage-project.sh add-service api 3001
+
+# Deploy project
+./manage-project.sh deploy
+
+# Check project status
+./manage-project.sh status
+
+# View service logs
+./manage-project.sh logs api
+
+# Remove project
+./manage-project.sh remove
+```
 
 #### Nginx Management
 ```bash
@@ -125,46 +202,41 @@ Internet → Nginx (Port 80/443) → Overlay Network → Your Services
 
 # Reload configuration
 /opt/manage-nginx.sh reload
-
-# Remove stack
-/opt/manage-nginx.sh remove
 ```
 
-#### Service Deployment
+### **Adding New Projects & Services**
+
+#### **Create New Project**
 ```bash
-# Generate service template
-./scripts/add-service-template.sh myapp 3000 myapp.example.com
+# Create project with domain
+./scripts/manage-projects.sh create myapp myapp.example.com 3000
 
-# Deploy service
-/opt/deploy-myapp.sh
-
-# Check service status
-docker stack services myapp
-
-# View service logs
-docker service logs myapp_myapp
+# This creates:
+# - /opt/projects/myapp/
+# - Project-specific Nginx configuration
+# - Individual project manager
 ```
 
-### **Adding New Services**
+#### **Add Services to Project**
+```bash
+# Navigate to project
+cd /opt/projects/myapp
 
-1. **Generate Service Template:**
-   ```bash
-   ./scripts/add-service-template.sh <service-name> <port> <domain>
-   ```
+# Add service to project
+./manage-project.sh add-service api 3001
+./manage-project.sh add-service web 3002
+./manage-project.sh add-service admin 3003 admin.myapp.example.com
 
-2. **Customize Configuration:**
-   - Edit `/etc/nginx/conf.d/<service-name>.conf`
-   - Update `/opt/<service-name>-service.yml`
+# Deploy project
+./manage-project.sh deploy
+```
 
-3. **Deploy Service:**
-   ```bash
-   /opt/deploy-<service-name>.sh
-   ```
-
-4. **Reload Nginx:**
-   ```bash
-   /opt/manage-nginx.sh reload
-   ```
+#### **Project Structure**
+Each project gets its own:
+- **Nginx Configs**: `/opt/projects/<name>/nginx/`
+- **Docker Compose**: `/opt/projects/<name>/services/`
+- **SSL Certificates**: `/opt/projects/<name>/ssl/`
+- **Management Script**: `/opt/projects/<name>/manage-project.sh`
 
 ### **SSL Configuration**
 1. Place certificates in `/etc/nginx/ssl/`
