@@ -308,3 +308,4 @@ echo "🌐 Nginx will be available on ports 80 and 443"
 echo "🔗 Overlay network 'nginx-proxy' created for service communication"
 
 echo "🎉 Setup complete: VM secured + Docker & Swarm + Nginx ready!"
+# Updated Fri, Aug  8, 2025 12:18:44 PM
