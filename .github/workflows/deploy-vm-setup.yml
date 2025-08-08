@@ -68,7 +68,7 @@ jobs:
       uses: shimataro/ssh-key-action@v2
       with:
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-        known_hosts: ${{ secrets.PRODUCTION_VM_IP }}
+        known_hosts: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
         passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
         
     - name: Deploy to VM
@@ -86,17 +86,24 @@ jobs:
         
         echo "🚀 Deploying to $TARGET_ENV environment (IP: $VM_IP)"
         
+        # Set username based on environment
+        if [ "$TARGET_ENV" = "staging" ]; then
+          SSH_USER="${{ secrets.STAGING_SSH_USER || 'admin' }}"
+        else
+          SSH_USER="${{ secrets.PRODUCTION_SSH_USER || 'admin' }}"
+        fi
+        
         # Copy script to VM
         echo "📤 Copying script to VM..."
-        scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 scripts/setup-vm-and-docker.sh ubuntu@$VM_IP:/tmp/
+        scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 scripts/setup-vm-and-docker.sh $SSH_USER@$VM_IP:/tmp/
         
         # Test SSH connection
         echo "🔍 Testing SSH connection..."
-        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ubuntu@$VM_IP "echo 'SSH connection successful'"
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 $SSH_USER@$VM_IP "echo 'SSH connection successful'"
         
         # Execute script on VM
         echo "🚀 Executing setup script on VM..."
-        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ubuntu@$VM_IP << 'EOF'
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 $SSH_USER@$VM_IP << 'EOF'
           set -e  # Exit on any error
           
           echo "🔐 Starting VM setup deployment..."
