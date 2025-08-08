@@ -33,6 +33,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Verify script format
+      run: |
+        echo "🔍 Checking script format..."
+        file scripts/setup-vm-and-docker.sh
+        echo "📋 Script first few lines:"
+        head -5 scripts/setup-vm-and-docker.sh
+        echo "📋 Script last few lines:"
+        tail -5 scripts/setup-vm-and-docker.sh
+      
     - name: Check if script has changed
       id: check-changes
       run: |
@@ -68,14 +77,37 @@ jobs:
         echo "🚀 Deploying to $TARGET_ENV environment (IP: $VM_IP)"
         
         # Copy script to VM
-        scp -o StrictHostKeyChecking=no scripts/setup-vm-and-docker.sh ubuntu@$VM_IP:/tmp/
+        echo "📤 Copying script to VM..."
+        scp -o StrictHostKeyChecking=no -o ConnectTimeout=30 scripts/setup-vm-and-docker.sh ubuntu@$VM_IP:/tmp/
+        
+        # Test SSH connection
+        echo "🔍 Testing SSH connection..."
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ubuntu@$VM_IP "echo 'SSH connection successful'"
         
         # Execute script on VM
-        ssh -o StrictHostKeyChecking=no ubuntu@$VM_IP << 'EOF'
+        echo "🚀 Executing setup script on VM..."
+        ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 ubuntu@$VM_IP << 'EOF'
+          set -e  # Exit on any error
+          
           echo "🔐 Starting VM setup deployment..."
+          echo "📋 Current directory: $(pwd)"
+          echo "📋 Script location: /tmp/setup-vm-and-docker.sh"
+          
+          # Check if script exists and is readable
+          if [ ! -f /tmp/setup-vm-and-docker.sh ]; then
+            echo "❌ Script not found at /tmp/setup-vm-and-docker.sh"
+            exit 1
+          fi
           
           # Make script executable
+          echo "🔧 Making script executable..."
           chmod +x /tmp/setup-vm-and-docker.sh
+          
+          # Verify script is executable
+          if [ ! -x /tmp/setup-vm-and-docker.sh ]; then
+            echo "❌ Script is not executable"
+            exit 1
+          fi
           
           # Create backup of current setup
           echo "📋 Creating backup..."
