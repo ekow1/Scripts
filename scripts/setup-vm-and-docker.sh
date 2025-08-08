@@ -1,17 +1,17 @@
-name: Deploy to Docker Swarm
+name: Setup VM and Docker
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  deploy:
+  setup:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+        
     - name: Copy setup script to server
       uses: appleboy/scp-action@v0.1.4
       with:
@@ -22,7 +22,7 @@ jobs:
         source: "setup-vm-and-docker.sh"
         target: "/tmp/"
         
-    - name: Run setup script and deploy
+    - name: Run setup script
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.PRODUCTION_VM_IP }}
@@ -35,6 +35,7 @@ jobs:
           /tmp/setup-vm-and-docker.sh
           
           # Show final status
+          echo "=== Setup Complete ==="
           docker --version
           docker node ls
           docker stack ls
