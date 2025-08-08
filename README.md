@@ -9,9 +9,8 @@ This repository contains a secure VM setup script that can be deployed automatic
 - **Multi-Environment Support**: Deploy to production or staging environments
 - **Secure SSH Deployment**: Uses GitHub Secrets for secure access
 - **Automatic Backups**: Creates backups before deployment
-- **Docker Swarm**: Container orchestration with global services
-- **Nginx Reverse Proxy**: Single point of entry with load balancing
-- **Service Templates**: Easy service deployment with templates
+- **Docker Swarm**: Container orchestration ready for your deployments
+- **Nginx Reverse Proxy**: Single point of entry for all your Docker services
 
 ## 📋 Prerequisites
 
@@ -46,8 +45,18 @@ cat ~/.ssh/id_rsa
 ### Automatic Deployment
 The workflow automatically triggers when:
 - You push changes to `scripts/setup-vm-and-docker.sh`
+- You push changes to `scripts/create-project.sh`
+- You push changes to `scripts/manage-projects.sh`
+- You push changes to `scripts/add-service-template.sh`
 - You push changes to the workflow file itself
 - Changes are made to the `main` branch
+
+### What Gets Deployed
+The GitHub Actions workflow deploys:
+- **VM Setup Script**: Security, Docker, and Nginx setup
+- **Project Management Tools**: Global commands for project management
+- **Nginx Configuration**: Reverse proxy setup with Docker Swarm
+- **Service Templates**: Tools for adding new services to projects
 
 ### Manual Deployment
 1. Go to your repository on GitHub
@@ -76,10 +85,7 @@ devops/
 │   └── workflows/
 │       └── deploy-vm-setup.yml    # GitHub Actions workflow
 ├── scripts/
-│   ├── setup-vm-and-docker.sh     # VM setup script
-│   ├── create-project.sh          # Project creation script
-│   ├── manage-projects.sh         # Global project manager
-│   └── add-service-template.sh     # Service template generator
+│   └── setup-vm-and-docker.sh     # VM setup script
 ├── env.example                     # Environment variables example
 └── README.md                       # This file
 ```
@@ -87,52 +93,47 @@ devops/
 ### **VM Structure (after deployment)**
 ```
 /opt/
-├── projects/                       # All projects
-│   ├── myapp/
-│   │   ├── nginx/                 # Project Nginx configs
-│   │   ├── services/              # Docker Compose files
-│   │   ├── ssl/                   # SSL certificates
-│   │   ├── logs/                  # Application logs
-│   │   └── manage-project.sh      # Project manager
-│   └── other-project/
-│       └── ...
 ├── nginx-stack.yml                # Global Nginx stack
 ├── manage-nginx.sh                # Nginx manager
-└── backups/                       # Project backups
+├── nginx/                         # Nginx configurations
+│   ├── nginx.conf
+│   └── conf.d/
+└── ssl/                          # SSL certificates
 ```
 
-## 🌐 Dynamic Project Management with Nginx & Docker Swarm
+### **Available Commands (on VM)**
+After deployment, these commands are available:
+- `/opt/manage-nginx.sh` - Manage Nginx reverse proxy
+- `docker stack deploy` - Deploy your applications
+- `docker service` - Manage Docker Swarm services
+
+## 🌐 Docker Swarm with Nginx Reverse Proxy
 
 ### **Architecture Overview**
 ```
-Internet → Nginx (Port 80/443) → Project-Specific Configs → Your Services
+Internet → Nginx (Port 80/443) → Docker Swarm Services
                 ↓
         Single Point of Entry
                 ↓
-        Project-Based Routing
-                ↓
         Service Discovery
+                ↓
+        Your Docker Applications
 ```
 
-### **Project-Based Structure**
+### **VM Structure (after deployment)**
 ```
-/opt/projects/
-├── project1/
-│   ├── nginx/           # Project-specific Nginx configs
-│   ├── services/        # Docker Compose files
-│   ├── ssl/            # SSL certificates
-│   ├── logs/           # Application logs
-│   └── manage-project.sh
-├── project2/
-│   ├── nginx/
-│   ├── services/
-│   └── manage-project.sh
-└── ...
+/opt/
+├── nginx-stack.yml                # Global Nginx stack
+├── manage-nginx.sh                # Nginx manager
+├── nginx/                         # Nginx configurations
+│   ├── nginx.conf
+│   └── conf.d/
+└── ssl/                          # SSL certificates
 ```
 
 ### **Nginx Features**
 - **Global Service**: Runs on all manager nodes
-- **Reverse Proxy**: Single entry point for all applications
+- **Reverse Proxy**: Single entry point for all Docker services
 - **Load Balancing**: Automatic distribution across service replicas
 - **SSL Ready**: Certificate management and HTTPS support
 - **Security**: Rate limiting, security headers, and access control
@@ -145,48 +146,36 @@ Internet → Nginx (Port 80/443) → Project-Specific Configs → Your Services
 - **Health Monitoring**: Built-in health checks and restart policies
 - **Scaling**: Easy horizontal scaling of services
 
-### **Project Management Commands**
+### **Deployment Commands**
 
-#### Global Project Management
+#### Nginx Management
 ```bash
-# Create new project
-./scripts/manage-projects.sh create myapp myapp.example.com 3000
+# Deploy Nginx stack
+/opt/manage-nginx.sh deploy
 
-# List all projects
-./scripts/manage-projects.sh list
+# Check status
+/opt/manage-nginx.sh status
 
-# Deploy all projects
-./scripts/manage-projects.sh deploy-all
+# View logs
+/opt/manage-nginx.sh logs
 
-# Show status of all projects
-./scripts/manage-projects.sh status-all
-
-# Remove project
-./scripts/manage-projects.sh remove myapp
-
-# Backup all projects
-./scripts/manage-projects.sh backup
+# Reload configuration
+/opt/manage-nginx.sh reload
 ```
 
-#### Individual Project Management
+#### Docker Swarm Deployment
 ```bash
-# Navigate to project
-cd /opt/projects/myapp
+# Deploy your application stack
+docker stack deploy -c docker-compose.yml myapp
 
-# Add service to project
-./manage-project.sh add-service api 3001
-
-# Deploy project
-./manage-project.sh deploy
-
-# Check project status
-./manage-project.sh status
+# Check service status
+docker stack services myapp
 
 # View service logs
-./manage-project.sh logs api
+docker service logs myapp_web
 
-# Remove project
-./manage-project.sh remove
+# Scale services
+docker service scale myapp_web=3
 ```
 
 #### Nginx Management
@@ -204,39 +193,49 @@ cd /opt/projects/myapp
 /opt/manage-nginx.sh reload
 ```
 
-### **Adding New Projects & Services**
+### **Deploying Your Applications**
 
-#### **Create New Project**
-```bash
-# Create project with domain
-./scripts/manage-projects.sh create myapp myapp.example.com 3000
+#### **Prepare Your Docker Stack**
+Create a `docker-compose.yml` file for your application:
+```yaml
+version: '3.8'
 
-# This creates:
-# - /opt/projects/myapp/
-# - Project-specific Nginx configuration
-# - Individual project manager
+networks:
+  nginx-proxy:
+    external: true
+
+services:
+  web:
+    image: your-app:latest
+    deploy:
+      replicas: 2
+    networks:
+      - nginx-proxy
+    environment:
+      - NODE_ENV=production
 ```
 
-#### **Add Services to Project**
+#### **Deploy to Docker Swarm**
 ```bash
-# Navigate to project
-cd /opt/projects/myapp
+# Deploy your application
+docker stack deploy -c docker-compose.yml myapp
 
-# Add service to project
-./manage-project.sh add-service api 3001
-./manage-project.sh add-service web 3002
-./manage-project.sh add-service admin 3003 admin.myapp.example.com
+# Check deployment status
+docker stack services myapp
 
-# Deploy project
-./manage-project.sh deploy
+# View logs
+docker service logs myapp_web
 ```
 
-#### **Project Structure**
-Each project gets its own:
-- **Nginx Configs**: `/opt/projects/<name>/nginx/`
-- **Docker Compose**: `/opt/projects/<name>/services/`
-- **SSL Certificates**: `/opt/projects/<name>/ssl/`
-- **Management Script**: `/opt/projects/<name>/manage-project.sh`
+#### **Configure Nginx for Your App**
+Add Nginx configuration for your service:
+```bash
+# Create Nginx config for your app
+sudo nano /etc/nginx/conf.d/myapp.conf
+
+# Reload Nginx
+/opt/manage-nginx.sh reload
+```
 
 ### **SSL Configuration**
 1. Place certificates in `/etc/nginx/ssl/`

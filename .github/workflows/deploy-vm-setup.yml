@@ -86,6 +86,8 @@ jobs:
           sudo /tmp/setup-vm-and-docker.sh
           
           echo "✅ VM setup deployment completed!"
+          echo "🚀 Ready for Docker Swarm deployments!"
+          echo "📋 Nginx management: /opt/manage-nginx.sh"
         EOF
         
     - name: Skip deployment
