@@ -1,4 +1,4 @@
-name: Deploy Docker Installation Script
+name: Deploy to Docker Swarm
 
 on:
   push:
@@ -12,17 +12,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Copy install script to server
+    - name: Build Docker image
+      run: |
+        docker build -t myapp:${{ github.sha }} .
+        
+    - name: Save Docker image
+      run: |
+        docker save myapp:${{ github.sha }} > myapp.tar
+        
+    - name: Copy Docker image to server
       uses: appleboy/scp-action@v0.1.4
       with:
         host: ${{ secrets.PRODUCTION_VM_IP }}
         username: ${{ secrets.PRODUCTION_SSH_USER }}
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
-        source: "install-docker.sh"
+        source: "myapp.tar"
         target: "/tmp/"
         
-    - name: Run Docker installation script
+    - name: Deploy to Docker Swarm
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.PRODUCTION_VM_IP }}
@@ -30,15 +38,29 @@ jobs:
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
         script: |
-          # Make script executable
-          chmod +x /tmp/install-docker.sh
+          # Load the image
+          docker load < /tmp/myapp.tar
           
-          # Run the installation script
-          /tmp/install-docker.sh
+          # Create docker-compose.yml for stack
+          cat > docker-compose.yml << EOF
+          version: '3.8'
+          services:
+            app:
+              image: myapp:${{ github.sha }}
+              ports:
+                - "80:80"
+              deploy:
+                replicas: 3
+                restart_policy:
+                  condition: on-failure
+          EOF
+          
+          # Deploy stack
+          docker stack deploy -c docker-compose.yml myapp-stack
           
           # Clean up
-          rm /tmp/install-docker.sh
+          rm /tmp/myapp.tar
           
-          # Show Docker and Swarm status
-          docker --version
-          docker info | grep -i swarm
+          # Show stack status
+          docker stack ls
+          docker stack services myapp-stack
