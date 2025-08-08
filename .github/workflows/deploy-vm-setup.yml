@@ -115,7 +115,7 @@ jobs:
           
           # Execute the setup script
           echo "⚡ Executing setup script..."
-          sudo /tmp/setup-vm-and-docker.sh
+          sudo bash /tmp/setup-vm-and-docker.sh
           
           echo "✅ VM setup deployment completed!"
           echo "🚀 Ready for Docker Swarm deployments!"

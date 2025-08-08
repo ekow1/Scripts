@@ -9,43 +9,43 @@ echo "🔐 Starting secure setup for your Google Cloud VM..."
 
 # Update and upgrade
 echo "📦 Updating system packages..."
-apt update && apt -y upgrade
+sudo apt update && sudo apt -y upgrade
 
 # Install fail2ban
 echo "🛡 Installing Fail2Ban..."
-apt install -y fail2ban
+sudo apt install -y fail2ban
 
 # Enable automatic security updates
 echo "🔄 Setting up automatic security updates..."
-apt install -y unattended-upgrades
-dpkg-reconfigure --priority=low unattended-upgrades
+sudo apt install -y unattended-upgrades
+sudo dpkg-reconfigure --priority=low unattended-upgrades
 
 # Setup UFW firewall
 echo "🔥 Configuring UFW firewall..."
-ufw allow OpenSSH
-ufw allow http
-ufw allow https
-ufw default deny incoming
-ufw default allow outgoing
-ufw --force enable
+sudo ufw allow OpenSSH
+sudo ufw allow http
+sudo ufw allow https
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw --force enable
 
 # SSH hardening
 echo "🔧 Hardening SSH configuration..."
 SSH_CONFIG="/etc/ssh/sshd_config"
-cp $SSH_CONFIG ${SSH_CONFIG}.bak
+sudo cp $SSH_CONFIG ${SSH_CONFIG}.bak
 
 # Disable root login & password authentication
-sed -i 's/^#*PermitRootLogin .*/PermitRootLogin no/' $SSH_CONFIG
-sed -i 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' $SSH_CONFIG
+sudo sed -i 's/^#*PermitRootLogin .*/PermitRootLogin no/' $SSH_CONFIG
+sudo sed -i 's/^#*PasswordAuthentication .*/PasswordAuthentication no/' $SSH_CONFIG
 
 # Restart SSH service
 echo "🔄 Restarting SSH service..."
-systemctl restart ssh
+sudo systemctl restart ssh
 
 # Enable fail2ban
 echo "✅ Enabling and starting Fail2Ban..."
-systemctl enable fail2ban
-systemctl start fail2ban
+sudo systemctl enable fail2ban
+sudo systemctl start fail2ban
 
 echo "🔐 Basic security setup complete."
 echo "🧯 Remember: If you lose your private key, you will be locked out!"
@@ -57,42 +57,42 @@ echo "🧯 Remember: If you lose your private key, you will be locked out!"
 echo "🐳 Installing Docker..."
 
 # Install pre-requisites
-apt-get install -y \
+sudo apt-get install -y \
     ca-certificates \
     curl \
     gnupg \
     lsb-release
 
 # Add Docker GPG key
-install -m 0755 -d /etc/apt/keyrings
+sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-    gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-chmod a+r /etc/apt/keyrings/docker.gpg
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
 # Set up the Docker repo
 echo \
   "deb [arch=$(dpkg --print-architecture) \
   signed-by=/etc/apt/keyrings/docker.gpg] \
   https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
 
-apt-get update -y
+sudo apt-get update -y
 
 # Install Docker Engine
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Enable and start Docker
-systemctl enable docker
-systemctl start docker
+sudo systemctl enable docker
+sudo systemctl start docker
 
 # Add current user to docker group
-usermod -aG docker $USER
+sudo usermod -aG docker $USER
 
 echo "✅ Docker installed successfully!"
 
 # Initialize Docker Swarm
 echo "🔁 Initializing Docker Swarm..."
-docker swarm init || echo "⚠️ Swarm already initialized."
+sudo docker swarm init || echo "⚠️ Swarm already initialized."
 
 # ------------------------------------------
 # 🌐 NGINX SETUP FOR DOCKER SWARM
@@ -102,15 +102,15 @@ echo "🌐 Setting up Nginx for Docker Swarm..."
 
 # Create overlay network for services
 echo "🔗 Creating overlay network..."
-docker network create --driver overlay --attachable nginx-proxy || echo "⚠️ Network already exists."
+sudo docker network create --driver overlay --attachable nginx-proxy || echo "⚠️ Network already exists."
 
 # Create Nginx configuration directory
 echo "📁 Creating Nginx configuration..."
-mkdir -p /etc/nginx/conf.d
-mkdir -p /etc/nginx/ssl
+sudo mkdir -p /etc/nginx/conf.d
+sudo mkdir -p /etc/nginx/ssl
 
 # Create global Nginx service configuration
-cat > /etc/nginx/nginx.conf << 'EOF'
+sudo tee /etc/nginx/nginx.conf > /dev/null << 'EOF'
 user nginx;
 worker_processes auto;
 error_log /var/log/nginx/error.log warn;
@@ -170,7 +170,7 @@ http {
 EOF
 
 # Create default server block
-cat > /etc/nginx/conf.d/default.conf << 'EOF'
+sudo tee /etc/nginx/conf.d/default.conf > /dev/null << 'EOF'
 server {
     listen 80;
     server_name _;
@@ -198,7 +198,7 @@ server {
 EOF
 
 # Create Docker Compose file for Nginx service
-cat > /opt/nginx-stack.yml << 'EOF'
+sudo tee /opt/nginx-stack.yml > /dev/null << 'EOF'
 version: '3.8'
 
 networks:
@@ -245,7 +245,7 @@ volumes:
 EOF
 
 # Create service management script
-cat > /opt/manage-nginx.sh << 'EOF'
+sudo tee /opt/manage-nginx.sh > /dev/null << 'EOF'
 #!/bin/bash
 
 NGINX_STACK_NAME="nginx-proxy"
@@ -286,11 +286,11 @@ esac
 EOF
 
 # Make the management script executable
-chmod +x /opt/manage-nginx.sh
+sudo chmod +x /opt/manage-nginx.sh
 
 # Create SSL certificate directory and placeholder
-mkdir -p /etc/nginx/ssl
-cat > /etc/nginx/ssl/README.md << 'EOF'
+sudo mkdir -p /etc/nginx/ssl
+sudo tee /etc/nginx/ssl/README.md > /dev/null << 'EOF'
 # SSL Certificates Directory
 
 Place your SSL certificates here:
