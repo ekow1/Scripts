@@ -63,13 +63,38 @@ jobs:
           fi
         fi
         
-    - name: Setup SSH with passphrase support
+    - name: Setup SSH
       if: steps.check-changes.outputs.has_changes == 'true'
-      uses: shimataro/ssh-key-action@v2
-      with:
-        key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-        known_hosts: ${{ secrets.VM_SSH_KNOWN_HOSTS || '' }}
-        passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE || '' }}
+      run: |
+        # Start SSH agent
+        eval $(ssh-agent -s)
+        
+        # Create temporary key file with passphrase handling
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VM_SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        
+        # Add key to agent (will prompt for passphrase if needed)
+        if [ -n "${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}" ]; then
+          # Use expect to handle passphrase
+          echo '#!/usr/bin/expect' > /tmp/ssh-add.exp
+          echo 'spawn ssh-add ~/.ssh/id_rsa' >> /tmp/ssh-add.exp
+          echo 'expect "Enter passphrase"' >> /tmp/ssh-add.exp
+          echo 'send "${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}\r"' >> /tmp/ssh-add.exp
+          echo 'expect eof' >> /tmp/ssh-add.exp
+          chmod +x /tmp/ssh-add.exp
+          /tmp/ssh-add.exp
+        else
+          ssh-add ~/.ssh/id_rsa
+        fi
+        
+        # Create SSH config to skip host verification
+        cat > ~/.ssh/config << EOF
+        Host *
+          StrictHostKeyChecking no
+          UserKnownHostsFile=/dev/null
+        EOF
+        chmod 600 ~/.ssh/config
         
     - name: Deploy to VM
       if: steps.check-changes.outputs.has_changes == 'true'
