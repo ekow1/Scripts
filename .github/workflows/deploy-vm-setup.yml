@@ -76,14 +76,13 @@ jobs:
         
         # Add key to agent (will prompt for passphrase if needed)
         if [ -n "${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}" ]; then
-          # Use expect to handle passphrase
-          echo '#!/usr/bin/expect' > /tmp/ssh-add.exp
-          echo 'spawn ssh-add ~/.ssh/id_rsa' >> /tmp/ssh-add.exp
-          echo 'expect "Enter passphrase"' >> /tmp/ssh-add.exp
-          echo 'send "${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}\r"' >> /tmp/ssh-add.exp
-          echo 'expect eof' >> /tmp/ssh-add.exp
-          chmod +x /tmp/ssh-add.exp
-          /tmp/ssh-add.exp
+          # Create a script to handle passphrase input
+          cat > /tmp/ssh-add-script.sh << 'EOF'
+          #!/bin/bash
+          ssh-add ~/.ssh/id_rsa <<< "${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}"
+          EOF
+          chmod +x /tmp/ssh-add-script.sh
+          /tmp/ssh-add-script.sh
         else
           ssh-add ~/.ssh/id_rsa
         fi
