@@ -1,41 +1,36 @@
-name: Setup VM and Docker
+#!/bin/bash
 
-on:
-  push:
-    branches: [ main ]
+# Simple Docker installation with Swarm setup
 
-jobs:
-  setup:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-        
-    - name: Copy setup script to server
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ secrets.PRODUCTION_VM_IP }}
-        username: ${{ secrets.PRODUCTION_SSH_USER }}
-        key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-        passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
-        source: "setup-vm-and-docker.sh"
-        target: "/tmp/"
-        
-    - name: Run setup script
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ secrets.PRODUCTION_VM_IP }}
-        username: ${{ secrets.PRODUCTION_SSH_USER }}
-        key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
-        passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
-        script: |
-          # Make script executable and run it
-          chmod +x /tmp/setup-vm-and-docker.sh
-          /tmp/setup-vm-and-docker.sh
-          
-          # Show final status
-          echo "=== Setup Complete ==="
-          docker --version
-          docker node ls
-          docker stack ls
+echo "Installing Docker..."
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Start Docker service
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Add current user to docker group
+sudo usermod -aG docker $USER
+
+echo "Docker installed successfully!"
+
+# Initialize Docker Swarm
+echo "Setting up Docker Swarm..."
+sudo docker swarm init
+
+# Show swarm status
+echo "Swarm Status:"
+sudo docker node ls
+
+echo ""
+echo "Installation complete!"
+echo "To join other nodes to this swarm, use:"
+echo "docker swarm join-token worker"
+echo ""
+echo "Note: You may need to logout and login again to use docker without sudo"

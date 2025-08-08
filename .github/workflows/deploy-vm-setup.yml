@@ -1,36 +1,28 @@
-name: Deploy to Docker Swarm
+name: Setup VM and Docker
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  deploy:
+  setup:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Build Docker image
-      run: |
-        docker build -t myapp:${{ github.sha }} .
         
-    - name: Save Docker image
-      run: |
-        docker save myapp:${{ github.sha }} > myapp.tar
-        
-    - name: Copy Docker image to server
+    - name: Copy setup script to server
       uses: appleboy/scp-action@v0.1.4
       with:
         host: ${{ secrets.PRODUCTION_VM_IP }}
         username: ${{ secrets.PRODUCTION_SSH_USER }}
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
-        source: "myapp.tar"
+        source: "setup-vm-and-docker.sh"
         target: "/tmp/"
         
-    - name: Deploy to Docker Swarm
+    - name: Run setup script
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.PRODUCTION_VM_IP }}
@@ -38,29 +30,12 @@ jobs:
         key: ${{ secrets.VM_SSH_PRIVATE_KEY }}
         passphrase: ${{ secrets.VM_SSH_PRIVATE_KEY_PASSPHRASE }}
         script: |
-          # Load the image
-          docker load < /tmp/myapp.tar
+          # Make script executable and run it
+          chmod +x /tmp/setup-vm-and-docker.sh
+          /tmp/setup-vm-and-docker.sh
           
-          # Create docker-compose.yml for stack
-          cat > docker-compose.yml << EOF
-          version: '3.8'
-          services:
-            app:
-              image: myapp:${{ github.sha }}
-              ports:
-                - "80:80"
-              deploy:
-                replicas: 3
-                restart_policy:
-                  condition: on-failure
-          EOF
-          
-          # Deploy stack
-          docker stack deploy -c docker-compose.yml myapp-stack
-          
-          # Clean up
-          rm /tmp/myapp.tar
-          
-          # Show stack status
+          # Show final status
+          echo "=== Setup Complete ==="
+          docker --version
+          docker node ls
           docker stack ls
-          docker stack services myapp-stack
